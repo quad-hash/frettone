@@ -5,156 +5,302 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FretTone - Guitar Chord Tone Viewer</title>
   <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
     body {
-      font-family: system-ui, sans-serif;
+      font-family: system-ui, -apple-system, sans-serif;
       margin: 0;
-      background: #111;
+      background: #0e0e0e;
       color: #eee;
     }
 
     header {
-      padding: 24px;
-      border-bottom: 1px solid #333;
+      padding: 18px 24px;
+      border-bottom: 1px solid #222;
     }
 
     h1 {
-      margin: 0 0 8px;
-      font-size: 28px;
+      margin: 0 0 2px;
+      font-size: 24px;
+      font-weight: 700;
+      color: #f0f0f0;
     }
 
     .subtitle {
-      color: #aaa;
+      color: #777;
       margin: 0;
-    }
-
-    main {
-      padding: 24px;
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-bottom: 24px;
-      align-items: end;
-    }
-
-    label {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      font-size: 14px;
-      color: #ccc;
-    }
-
-    select, button {
-      padding: 10px 12px;
-      border-radius: 8px;
-      border: 1px solid #444;
-      background: #1d1d1d;
-      color: #eee;
-      font-size: 15px;
-    }
-
-    button {
-      cursor: pointer;
-    }
-
-    .info {
-      margin: 16px 0 24px;
-      padding: 12px 16px;
-      background: #1a1a1a;
-      border: 1px solid #333;
-      border-radius: 10px;
-      color: #ddd;
-    }
-
-    .fretboard {
-      overflow-x: auto;
-      border: 1px solid #333;
-      border-radius: 12px;
-      background: #171717;
-      padding: 12px;
-    }
-
-    .string-row {
-      display: grid;
-      grid-template-columns: 42px repeat(13, 64px);
-      min-width: max-content;
-      border-bottom: 1px solid #333;
-    }
-
-    .string-row:last-child {
-      border-bottom: none;
-    }
-
-    .string-name {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #aaa;
-      font-weight: bold;
-      border-right: 1px solid #333;
-    }
-
-    .fret {
-      height: 54px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-right: 1px solid #333;
-      position: relative;
-      color: #555;
       font-size: 13px;
     }
 
-    .fret:last-child {
-      border-right: none;
+    main {
+      padding: 20px 24px;
+      max-width: 1200px;
+      margin: 0 auto;
     }
 
-    .active {
-      color: #111;
-    }
-
-    .note-badge {
-      min-width: 34px;
-      height: 34px;
-      padding: 0 6px;
-      border-radius: 999px;
-      background: #eee;
+    /* ── Controls ── */
+    .controls {
       display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      color: #111;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
     }
 
-    .root .note-badge {
-      background: #ffd166;
+    .control-group {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .control-label {
+      min-width: 60px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding-top: 9px;
+      flex-shrink: 0;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .btn {
+      padding: 7px 13px;
+      border-radius: 6px;
+      border: 1.5px solid #333;
+      background: #1c1c1c;
+      color: #aaa;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.1s, color 0.1s, border-color 0.1s;
+      white-space: nowrap;
+      line-height: 1;
+    }
+
+    .btn:hover:not(.selected) {
+      background: #262626;
+      border-color: #555;
+      color: #ddd;
+    }
+
+    .btn.selected {
+      background: #c47c10;
+      border-color: #c47c10;
+      color: #fff;
+      box-shadow: 0 0 0 2px rgba(196, 124, 16, 0.28);
+    }
+
+    /* ── Info panel ── */
+    .info {
+      margin: 0 0 20px;
+      padding: 12px 16px;
+      background: #161616;
+      border: 1px solid #242424;
+      border-radius: 8px;
+    }
+
+    #summary {
+      font-size: 15px;
+      font-weight: 600;
+      color: #e8e8e8;
     }
 
     .degree-list {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 12px;
+      gap: 6px;
+      margin-top: 10px;
     }
 
     .chip {
-      padding: 6px 10px;
-      border: 1px solid #444;
+      padding: 4px 10px;
+      border: 1px solid #2e2e2e;
       border-radius: 999px;
-      background: #1d1d1d;
-      color: #ddd;
-      font-size: 14px;
+      background: #1e1e1e;
+      color: #c0c0c0;
+      font-size: 13px;
+    }
+
+    /* ── Fretboard scroll wrapper ── */
+    .fretboard-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: 10px;
+      padding-bottom: 4px;
+    }
+
+    /* ── Fretboard container ── */
+    .fretboard {
+      display: inline-block;
+      background: repeating-linear-gradient(
+        90deg,
+        #130a04 0px,
+        #1b0e06 10px,
+        #130a04 20px,
+        #190d06 30px,
+        #130a04 40px
+      );
+      border-radius: 10px;
+      padding: 14px 18px 16px 14px;
+      min-width: max-content;
+      box-shadow: inset 0 0 40px rgba(0,0,0,0.7), 0 4px 24px rgba(0,0,0,0.6);
+      border: 1px solid #0a0604;
+    }
+
+    /* Shared grid: label col + 13 fret cols */
+    .fb-row {
+      display: grid;
+      grid-template-columns: 44px repeat(13, 64px);
+    }
+
+    /* ── Fret number header ── */
+    .fret-num-header {
+      margin-bottom: 6px;
+    }
+
+    .fret-num-cell {
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #5a4020;
+    }
+
+    /* ── String rows ── */
+    .string-row {
+      position: relative;
+    }
+
+    /* The string line behind all cells */
+    .string-row::before {
+      content: '';
+      position: absolute;
+      left: 44px;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      z-index: 0;
+      border-radius: 1px;
+    }
+
+    .string-row[data-string-idx="0"]::before {
+      height: 1px;
+      background: linear-gradient(90deg, #a09878, #ccc0a0, #a09878);
+    }
+    .string-row[data-string-idx="1"]::before {
+      height: 1px;
+      background: linear-gradient(90deg, #a09878, #ccc0a0, #a09878);
+    }
+    .string-row[data-string-idx="2"]::before {
+      height: 2px;
+      background: linear-gradient(90deg, #a09060, #c0b080, #a09060);
+    }
+    .string-row[data-string-idx="3"]::before {
+      height: 2px;
+      background: linear-gradient(90deg, #a09060, #c0b080, #a09060);
+    }
+    .string-row[data-string-idx="4"]::before {
+      height: 3px;
+      background: linear-gradient(90deg, #988050, #b89868, #988050);
+    }
+    .string-row[data-string-idx="5"]::before {
+      height: 4px;
+      background: linear-gradient(90deg, #988050, #b89868, #988050);
+    }
+
+    /* String name label */
+    .string-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #5a4020;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* ── Fret cells ── */
+    .fret-cell {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+      /* Fret wire: thin right border */
+      border-right: 2px solid rgba(140, 110, 60, 0.55);
+    }
+
+    /* Nut: thick bright bar after open-string column */
+    .fret-cell.fret-open {
+      border-right: 8px solid rgba(225, 210, 180, 0.9);
+    }
+
+    /* Last fret: no border */
+    .fret-cell:last-child {
+      border-right: none;
+    }
+
+    /* ── Position markers ── */
+    .markers-row {
+      margin-top: 7px;
+    }
+
+    .marker-cell {
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .marker-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #3d2810;
+      flex-shrink: 0;
+    }
+
+    /* ── Note badges ── */
+    .note-badge {
+      position: relative;
+      z-index: 3;
+      min-width: 36px;
+      height: 36px;
+      padding: 0 7px;
+      border-radius: 999px;
+      background: #1a5fb0;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 13px;
+      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+      letter-spacing: -0.02em;
+    }
+
+    .fret-cell.root .note-badge {
+      background: #bf6f0c;
+      color: #fff;
     }
 
     footer {
-      padding: 24px;
-      color: #777;
-      font-size: 13px;
+      padding: 20px 24px;
+      color: #444;
+      font-size: 12px;
       text-align: center;
     }
   </style>
@@ -167,31 +313,28 @@
 
   <main>
     <section class="controls">
-      <label>
-        Root
-        <select id="rootSelect"></select>
-      </label>
-
-      <label>
-        Mode
-        <select id="modeSelect">
-          <option value="chord">Chord</option>
-          <option value="scale">Scale</option>
-        </select>
-      </label>
-
-      <label>
-        Type
-        <select id="typeSelect"></select>
-      </label>
-
-      <label>
-        Display
-        <select id="displaySelect">
-          <option value="degree">Degree</option>
-          <option value="note">Note</option>
-        </select>
-      </label>
+      <div class="control-group">
+        <div class="control-label">Root</div>
+        <div class="btn-row" id="rootBtns"></div>
+      </div>
+      <div class="control-group">
+        <div class="control-label">Mode</div>
+        <div class="btn-row" id="modeBtns">
+          <button class="btn" data-value="chord">Chord</button>
+          <button class="btn" data-value="scale">Scale</button>
+        </div>
+      </div>
+      <div class="control-group">
+        <div class="control-label">Type</div>
+        <div class="btn-row" id="typeBtns"></div>
+      </div>
+      <div class="control-group">
+        <div class="control-label">Display</div>
+        <div class="btn-row" id="displayBtns">
+          <button class="btn" data-value="degree">Degree</button>
+          <button class="btn" data-value="note">Note</button>
+        </div>
+      </div>
     </section>
 
     <section class="info">
@@ -199,23 +342,23 @@
       <div class="degree-list" id="degreeList"></div>
     </section>
 
-    <section class="fretboard" id="fretboard"></section>
+    <div class="fretboard-scroll">
+      <div id="fretboard" class="fretboard"></div>
+    </div>
   </main>
 
-  <footer>
-    Built for checking chord tones and scales on guitar.
-  </footer>
+  <footer>Built for checking chord tones and scales on guitar.</footer>
 
   <script>
     const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
     const guitarStrings = [
-      { name: "1st", open: "E" },
-      { name: "2nd", open: "B" },
-      { name: "3rd", open: "G" },
-      { name: "4th", open: "D" },
-      { name: "5th", open: "A" },
-      { name: "6th", open: "E" }
+      { name: "e", open: "E" },
+      { name: "B", open: "B" },
+      { name: "G", open: "G" },
+      { name: "D", open: "D" },
+      { name: "A", open: "A" },
+      { name: "E", open: "E" }
     ];
 
     const chords = {
@@ -326,65 +469,110 @@
       ]
     };
 
-    const rootSelect = document.getElementById("rootSelect");
-    const modeSelect = document.getElementById("modeSelect");
-    const typeSelect = document.getElementById("typeSelect");
-    const displaySelect = document.getElementById("displaySelect");
-    const fretboard = document.getElementById("fretboard");
-    const summary = document.getElementById("summary");
-    const degreeList = document.getElementById("degreeList");
+    // Explicit type ordering (JS sorts integer-like keys first, so we can't use Object.keys order)
+    const CHORD_TYPES = ["M7", "m7", "7", "m7♭5", "dim7"];
+    const SCALE_TYPES = ["Major", "Natural Minor", "Dorian", "Mixolydian", "Altered", "Lydian Dominant", "Half-Whole Diminished", "Whole Tone"];
 
-    notes.forEach(note => {
-      const option = document.createElement("option");
-      option.value = note;
-      option.textContent = note;
-      rootSelect.appendChild(option);
-    });
+    // 0 = no marker, 1 = single dot, 2 = double dot
+    const MARKERS = [0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 2];
 
-    rootSelect.value = "C";
-
-    function populateTypes() {
-      const mode = modeSelect.value;
-      const source = mode === "chord" ? chords : scales;
-
-      typeSelect.innerHTML = "";
-
-      Object.keys(source).forEach(type => {
-        const option = document.createElement("option");
-        option.value = type;
-        option.textContent = type;
-        typeSelect.appendChild(option);
-      });
-    }
+    const state = { root: "C", mode: "chord", type: "M7", display: "degree" };
 
     function noteFromInterval(root, interval) {
-      const rootIndex = notes.indexOf(root);
-      return notes[(rootIndex + interval) % 12];
+      return notes[(notes.indexOf(root) + interval) % 12];
     }
 
     function getFretNote(openNote, fret) {
-      const openIndex = notes.indexOf(openNote);
-      return notes[(openIndex + fret) % 12];
+      return notes[(notes.indexOf(openNote) + fret) % 12];
+    }
+
+    function setSelected(containerId, value) {
+      document.getElementById(containerId).querySelectorAll(".btn").forEach(btn => {
+        btn.classList.toggle("selected", btn.dataset.value === value);
+      });
+    }
+
+    function buildTypeButtons() {
+      const source = state.mode === "chord" ? chords : scales;
+      const types = state.mode === "chord" ? CHORD_TYPES : SCALE_TYPES;
+      const container = document.getElementById("typeBtns");
+      container.innerHTML = "";
+      types.forEach(val => {
+        const btn = document.createElement("button");
+        btn.className = "btn";
+        btn.textContent = val;
+        btn.dataset.value = val;
+        btn.addEventListener("click", () => {
+          state.type = val;
+          setSelected("typeBtns", val);
+          render();
+        });
+        container.appendChild(btn);
+      });
+      if (!source[state.type]) state.type = types[0];
+      setSelected("typeBtns", state.type);
+    }
+
+    function initControls() {
+      // Root
+      const rootContainer = document.getElementById("rootBtns");
+      notes.forEach(note => {
+        const btn = document.createElement("button");
+        btn.className = "btn";
+        btn.textContent = note;
+        btn.dataset.value = note;
+        btn.addEventListener("click", () => {
+          state.root = note;
+          setSelected("rootBtns", note);
+          render();
+        });
+        rootContainer.appendChild(btn);
+      });
+      setSelected("rootBtns", state.root);
+
+      // Mode
+      document.getElementById("modeBtns").querySelectorAll(".btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          if (state.mode === btn.dataset.value) return;
+          state.mode = btn.dataset.value;
+          state.type = (state.mode === "chord" ? CHORD_TYPES : SCALE_TYPES)[0];
+          setSelected("modeBtns", state.mode);
+          buildTypeButtons();
+          render();
+        });
+      });
+      setSelected("modeBtns", state.mode);
+
+      // Type
+      buildTypeButtons();
+
+      // Display
+      document.getElementById("displayBtns").querySelectorAll(".btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          state.display = btn.dataset.value;
+          setSelected("displayBtns", btn.dataset.value);
+          render();
+        });
+      });
+      setSelected("displayBtns", state.display);
     }
 
     function render() {
-      const root = rootSelect.value;
-      const mode = modeSelect.value;
-      const type = typeSelect.value;
-      const display = displaySelect.value;
+      const { root, mode, type, display } = state;
       const source = mode === "chord" ? chords : scales;
       const formula = source[type];
+      if (!formula) return;
 
       const activeNotes = formula.map(item => ({
         note: noteFromInterval(root, item.interval),
-        degree: item.degree,
-        interval: item.interval
+        degree: item.degree
       }));
-
       const noteMap = new Map(activeNotes.map(item => [item.note, item.degree]));
 
-      summary.textContent = `${root} ${type} - ${activeNotes.map(item => item.note).join(" ")}`;
+      document.getElementById("summary").textContent =
+        `${root} ${type}  —  ${activeNotes.map(i => i.note).join("  ")}`;
 
+      const degreeList = document.getElementById("degreeList");
       degreeList.innerHTML = "";
       activeNotes.forEach(item => {
         const chip = document.createElement("span");
@@ -393,53 +581,71 @@
         degreeList.appendChild(chip);
       });
 
-      fretboard.innerHTML = "";
+      const fb = document.getElementById("fretboard");
+      fb.innerHTML = "";
 
-      guitarStrings.forEach(string => {
+      // Fret number header row
+      const headerRow = document.createElement("div");
+      headerRow.className = "fb-row fret-num-header";
+      const corner = document.createElement("div");
+      corner.className = "fret-num-cell";
+      headerRow.appendChild(corner);
+      for (let f = 0; f <= 12; f++) {
+        const cell = document.createElement("div");
+        cell.className = "fret-num-cell";
+        cell.textContent = f;
+        headerRow.appendChild(cell);
+      }
+      fb.appendChild(headerRow);
+
+      // String rows
+      guitarStrings.forEach((string, idx) => {
         const row = document.createElement("div");
-        row.className = "string-row";
+        row.className = "string-row fb-row";
+        row.dataset.stringIdx = idx;
 
-        const stringName = document.createElement("div");
-        stringName.className = "string-name";
-        stringName.textContent = string.name;
-        row.appendChild(stringName);
+        const label = document.createElement("div");
+        label.className = "string-label";
+        label.textContent = string.name;
+        row.appendChild(label);
 
         for (let fret = 0; fret <= 12; fret++) {
           const note = getFretNote(string.open, fret);
           const cell = document.createElement("div");
-          cell.className = "fret";
+          cell.className = "fret-cell" + (fret === 0 ? " fret-open" : "");
 
           if (noteMap.has(note)) {
-            cell.classList.add("active");
-            if (note === root) {
-              cell.classList.add("root");
-            }
-
+            if (note === root) cell.classList.add("root");
             const badge = document.createElement("div");
             badge.className = "note-badge";
             badge.textContent = display === "note" ? note : noteMap.get(note);
             cell.appendChild(badge);
-          } else {
-            cell.textContent = fret === 0 ? "open" : fret;
           }
 
           row.appendChild(cell);
         }
 
-        fretboard.appendChild(row);
+        fb.appendChild(row);
       });
+
+      // Position markers row
+      const markersRow = document.createElement("div");
+      markersRow.className = "fb-row markers-row";
+      markersRow.appendChild(document.createElement("div"));
+      for (let f = 0; f <= 12; f++) {
+        const cell = document.createElement("div");
+        cell.className = "marker-cell";
+        for (let d = 0; d < MARKERS[f]; d++) {
+          const dot = document.createElement("span");
+          dot.className = "marker-dot";
+          cell.appendChild(dot);
+        }
+        markersRow.appendChild(cell);
+      }
+      fb.appendChild(markersRow);
     }
 
-    modeSelect.addEventListener("change", () => {
-      populateTypes();
-      render();
-    });
-
-    rootSelect.addEventListener("change", render);
-    typeSelect.addEventListener("change", render);
-    displaySelect.addEventListener("change", render);
-
-    populateTypes();
+    initControls();
     render();
   </script>
 </body>
