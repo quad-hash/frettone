@@ -6,6 +6,11 @@
   <title>FretTone | ジャズギター コードトーン・スケール 指板確認 無料Webアプリ</title>
   <meta name="description" content="FretToneは、ジャズギター初心者がコードトーン・スケール・度数をギター指板上で確認できる無料Webアプリです。ii-V-I、コードトーン練習、アドリブ練習の補助に使えます。" />
   <meta name="keywords" content="ジャズギター,コードトーン,スケール,度数,指板,ii-V-I,アドリブ,ギター初心者,無料" />
+  <link rel="canonical" href="https://quad-hash.github.io/frettone/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="FretTone | ジャズギター コードトーン・スケール 指板確認 無料Webアプリ" />
+  <meta property="og:description" content="FretToneは、ジャズギター初心者がコードトーン・スケール・度数をギター指板上で確認できる無料Webアプリです。ii-V-I、コードトーン練習、アドリブ練習の補助に使えます。" />
+  <meta property="og:url" content="https://quad-hash.github.io/frettone/" />
   <style>
     *, *::before, *::after { box-sizing: border-box; }
 
@@ -299,6 +304,33 @@
       color: #fff;
     }
 
+    /* ── About section ── */
+    .about {
+      max-width: 1200px;
+      margin: 40px auto 0;
+      padding: 0 24px 40px;
+      color: #888;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    .about h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #aaa;
+      margin: 28px 0 8px;
+      border-bottom: 1px solid #222;
+      padding-bottom: 6px;
+    }
+
+    .about h2:first-child {
+      margin-top: 0;
+    }
+
+    .about p {
+      margin: 0 0 8px;
+    }
+
     footer {
       padding: 20px 24px;
       color: #444;
@@ -349,6 +381,19 @@
       <div id="fretboard" class="fretboard"></div>
     </div>
   </main>
+
+  <section class="about">
+    <h2>FretToneとは</h2>
+    <p>FretToneは、ジャズギター初心者向けの無料Webアプリです。コードトーン・スケール・度数をギター指板上でリアルタイムに確認できます。インストール不要で、ブラウザからすぐ使えます。</p>
+
+    <h2>何に使えるか</h2>
+    <p>ii-V-I進行のコードトーンを指板上で把握したいとき、各コードの構成音（ルート・3度・5度・7度）をビジュアルで覚えたいとき、スケールの指板上の配置を確認したいとき、アドリブ練習の前に音の場所を整理したいとき——そういった場面で役立ちます。</p>
+
+    <h2>ジャズギター初心者向けの使い方</h2>
+    <p><strong>コードトーン確認：</strong>ルート音とコードタイプ（M7・m7・7・m7♭5・dim7）を選ぶと、そのコードの構成音が指板全体に表示されます。Degree表示にすると「R・3・5・♭7」のように度数で確認できるので、音と度数の結びつきを指板上で覚えられます。</p>
+    <p><strong>ii-V-I練習：</strong>たとえばCキーのii-V-Iなら、Dm7（Root: D / Type: m7）→ G7（Root: G / Type: 7）→ CM7（Root: C / Type: M7）と切り替えながら、各コードトーンの位置関係を確認できます。</p>
+    <p><strong>スケール確認：</strong>ModeをScaleに切り替えると、Major・Natural Minor・Dorian・Mixolydian・Altered・Lydian Dominant・Half-Whole Diminished・Whole Toneのスケールが選べます。アドリブで使うスケールの指板上のパターンを視覚的に把握するのに役立ちます。</p>
+  </section>
 
   <footer>Built for checking chord tones and scales on guitar.</footer>
 
