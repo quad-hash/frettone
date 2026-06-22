@@ -331,6 +331,79 @@
       margin: 0 0 8px;
     }
 
+    /* ── Live Audio Mode ── */
+    .btn.live-on {
+      background: #122812;
+      border-color: #2e7a2e;
+      color: #5ddc5d;
+      box-shadow: 0 0 0 2px rgba(80, 200, 80, 0.2);
+    }
+
+    .live-panel {
+      display: none;
+      margin: 0 0 20px;
+      padding: 14px 18px;
+      background: #0d1a0d;
+      border: 1px solid #1a341a;
+      border-radius: 8px;
+    }
+
+    .live-panel.active { display: block; }
+
+    .live-panel-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #3a8a3a;
+      margin: 0 0 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .live-grid {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      gap: 7px 16px;
+    }
+
+    .live-lbl {
+      font-size: 11px;
+      font-weight: 700;
+      color: #4a5a4a;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      align-self: center;
+    }
+
+    .live-val {
+      font-size: 15px;
+      font-weight: 600;
+      color: #bbb;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .live-val.em { color: #5ddc5d; font-size: 18px; }
+    .live-val.dim { color: #3a3a3a; }
+
+    /* Fretboard live highlight */
+    .fret-cell.live-hit::after {
+      content: '';
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(70, 210, 70, 0.5);
+      border: 2px solid rgba(70, 210, 70, 0.85);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .fret-cell.live-hit .note-badge {
+      box-shadow: 0 0 0 3px #4ed44e, 0 2px 8px rgba(0, 0, 0, 0.7);
+    }
+
     footer {
       padding: 20px 24px;
       color: #444;
@@ -370,12 +443,34 @@
           <button class="btn" data-value="note">Note</button>
         </div>
       </div>
+      <div class="control-group">
+        <div class="control-label">Live</div>
+        <div class="btn-row">
+          <button class="btn" id="liveBtn">Start Live Mode</button>
+        </div>
+      </div>
     </section>
 
     <section class="info">
       <strong id="summary"></strong>
       <div class="degree-list" id="degreeList"></div>
     </section>
+
+    <div class="live-panel" id="livePanel">
+      <div class="live-panel-title">Live Audio</div>
+      <div class="live-grid">
+        <div class="live-lbl">Status</div>
+        <div class="live-val" id="liveStatus">—</div>
+        <div class="live-lbl">Detected Note</div>
+        <div class="live-val em dim" id="liveNote">—</div>
+        <div class="live-lbl">Frequency</div>
+        <div class="live-val" id="liveFreq">—</div>
+        <div class="live-lbl">Tuning Offset</div>
+        <div class="live-val" id="liveCents">—</div>
+        <div class="live-lbl">Degree</div>
+        <div class="live-val em dim" id="liveDegree">—</div>
+      </div>
+    </div>
 
     <div class="fretboard-scroll">
       <div id="fretboard" class="fretboard"></div>
@@ -524,7 +619,19 @@
     // 0 = no marker, 1 = single dot, 2 = double dot
     const MARKERS = [0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 2];
 
-    const state = { root: "C", mode: "chord", type: "M7", display: "degree" };
+    const state = { root: "C", mode: "chord", type: "M7", display: "degree", livePitchClass: null };
+
+    // Live Audio Mode runtime state (not part of app state to avoid re-renders)
+    const live = {
+      active: false,
+      audioCtx: null,
+      analyser: null,
+      stream: null,
+      rafId: null,
+      lastFreq: null,
+      stableCount: 0,
+      pitchClass: null,
+    };
 
     function noteFromInterval(root, interval) {
       return notes[(notes.indexOf(root) + interval) % 12];
@@ -661,6 +768,7 @@
           const note = getFretNote(string.open, fret);
           const cell = document.createElement("div");
           cell.className = "fret-cell" + (fret === 0 ? " fret-open" : "");
+          cell.dataset.note = note; // used by Live Mode highlight
 
           if (noteMap.has(note)) {
             if (note === root) cell.classList.add("root");
@@ -691,10 +799,221 @@
         markersRow.appendChild(cell);
       }
       fb.appendChild(markersRow);
+
+      // Reapply live highlight if Live Mode is active after DOM rebuild
+      if (live.pitchClass !== null) liveHighlight(notes[live.pitchClass]);
     }
 
     initControls();
     render();
+
+    // ──────────────────────────────────────────
+    // Live Audio Mode
+    // ──────────────────────────────────────────
+
+    // Extended interval names for notes outside the selected formula
+    const INTERVAL_NAMES = {
+      0: "R", 1: "♭9", 2: "9", 3: "♭3/♯9", 4: "3",
+      5: "11", 6: "♯11/♭5", 7: "5", 8: "♯5/♭13",
+      9: "13/6", 10: "♭7", 11: "7"
+    };
+
+    // Convert MIDI note number to frequency
+    function midiToFreq(midi) {
+      return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    // Convert frequency to { noteName, pitchClass, octave, cents }
+    function freqToNoteInfo(freq) {
+      const midi = Math.round(12 * Math.log2(freq / 440) + 69);
+      const pitchClass = ((midi % 12) + 12) % 12;
+      const octave = Math.floor(midi / 12) - 1;
+      const cents = Math.round(1200 * Math.log2(freq / midiToFreq(midi)));
+      return { pitchClass, octave, note: notes[pitchClass], noteName: notes[pitchClass] + octave, cents };
+    }
+
+    // Autocorrelation pitch detector (no external dependency)
+    // Searches lag range matching guitar frequency range (~60–1500 Hz)
+    function autoCorrelate(buf, sampleRate) {
+      const n = buf.length;
+
+      // Silence check via RMS
+      let rms = 0;
+      for (let i = 0; i < n; i++) rms += buf[i] * buf[i];
+      rms = Math.sqrt(rms / n);
+      if (rms < 0.02) return -1;
+
+      const energy = rms * rms * n; // same as corr(0) without extra pass
+      const minLag = Math.floor(sampleRate / 1500);
+      const maxLag = Math.min(Math.ceil(sampleRate / 60), n - 2);
+
+      // Helper: raw autocorrelation at a given lag
+      function corr(lag) {
+        let s = 0;
+        const end = n - lag;
+        for (let i = 0; i < end; i++) s += buf[i] * buf[i + lag];
+        return s;
+      }
+
+      // Find lag with highest correlation in the guitar range
+      let bestCorr = 0, bestLag = -1;
+      for (let lag = minLag; lag <= maxLag; lag++) {
+        const c = corr(lag);
+        if (c > bestCorr) { bestCorr = c; bestLag = lag; }
+      }
+
+      if (bestLag < 0 || bestCorr / energy < 0.35) return -1;
+
+      // Parabolic interpolation for sub-sample accuracy
+      if (bestLag > minLag && bestLag < maxLag) {
+        const y1 = corr(bestLag - 1);
+        const y2 = bestCorr;
+        const y3 = corr(bestLag + 1);
+        const denom = y1 + y3 - 2 * y2;
+        if (denom < 0) bestLag = bestLag - (y3 - y1) / (2 * denom);
+      }
+
+      return sampleRate / bestLag;
+    }
+
+    // Return { label, inFormula } for a detected pitch class vs current selection
+    function getDegree(pitchClass) {
+      const { root, mode, type } = state;
+      const formula = (mode === "chord" ? chords : scales)[type];
+      if (!formula) return { label: "?", inFormula: false };
+      const interval = (pitchClass - notes.indexOf(root) + 12) % 12;
+      const match = formula.find(f => f.interval === interval);
+      return match
+        ? { label: match.degree, inFormula: true }
+        : { label: INTERVAL_NAMES[interval] ?? "?", inFormula: false };
+    }
+
+    // Add/remove green glow on all fretboard cells matching the note
+    function liveHighlight(noteStr) {
+      document.querySelectorAll(".fret-cell.live-hit").forEach(el => el.classList.remove("live-hit"));
+      if (noteStr) {
+        document.querySelectorAll(`.fret-cell[data-note="${noteStr}"]`).forEach(el => el.classList.add("live-hit"));
+      }
+    }
+
+    // Update the live panel UI
+    function setLiveUI({ status, info, degree }) {
+      document.getElementById("liveStatus").textContent = status;
+
+      const noteEl = document.getElementById("liveNote");
+      const freqEl = document.getElementById("liveFreq");
+      const centsEl = document.getElementById("liveCents");
+      const degEl = document.getElementById("liveDegree");
+
+      if (info) {
+        noteEl.textContent = info.noteName;
+        noteEl.className = "live-val em";
+        freqEl.textContent = info.freq + " Hz";
+        const sign = info.cents >= 0 ? "+" : "";
+        centsEl.textContent = sign + info.cents + " cents";
+        degEl.textContent = degree.label
+          + (degree.inFormula ? "" : " (non-chord)")
+          + "  —  " + state.root + " " + state.type;
+        degEl.className = "live-val em";
+      } else {
+        noteEl.textContent = "—"; noteEl.className = "live-val em dim";
+        freqEl.textContent = "—";
+        centsEl.textContent = "—";
+        degEl.textContent = "—"; degEl.className = "live-val em dim";
+      }
+    }
+
+    // Animation frame loop: detect pitch and update UI
+    function liveTick() {
+      const buf = new Float32Array(live.analyser.fftSize);
+      live.analyser.getFloatTimeDomainData(buf);
+      const freq = autoCorrelate(buf, live.audioCtx.sampleRate);
+
+      if (freq < 0) {
+        // Silence or noise
+        live.stableCount = 0;
+        live.lastFreq = null;
+        if (live.pitchClass !== null) {
+          live.pitchClass = null;
+          state.livePitchClass = null;
+          liveHighlight(null);
+        }
+        setLiveUI({ status: "No stable pitch", info: null });
+      } else {
+        // Check stability: within ~100 cents of last detection
+        const centsDiff = live.lastFreq
+          ? Math.abs(1200 * Math.log2(freq / live.lastFreq))
+          : Infinity;
+        live.stableCount = centsDiff < 100 ? live.stableCount + 1 : 1;
+        live.lastFreq = freq;
+
+        if (live.stableCount >= 3) {
+          const info = freqToNoteInfo(freq);
+          info.freq = freq.toFixed(1);
+          const degree = getDegree(info.pitchClass);
+
+          if (live.pitchClass !== info.pitchClass) {
+            live.pitchClass = info.pitchClass;
+            state.livePitchClass = info.pitchClass;
+            liveHighlight(info.note);
+          }
+          setLiveUI({ status: "Listening", info, degree });
+        } else {
+          setLiveUI({ status: "Detecting...", info: null });
+        }
+      }
+
+      live.rafId = requestAnimationFrame(liveTick);
+    }
+
+    async function startLiveMode() {
+      const btn = document.getElementById("liveBtn");
+      try {
+        live.stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        live.audioCtx = new AudioContext();
+        live.analyser = live.audioCtx.createAnalyser();
+        live.analyser.fftSize = 2048;
+        live.analyser.smoothingTimeConstant = 0; // raw data; stability handled in JS
+        live.audioCtx.createMediaStreamSource(live.stream).connect(live.analyser);
+
+        live.active = true;
+        live.stableCount = 0;
+        live.lastFreq = null;
+
+        document.getElementById("livePanel").classList.add("active");
+        btn.textContent = "Stop Live Mode";
+        btn.classList.add("live-on");
+        setLiveUI({ status: "Listening", info: null });
+
+        live.rafId = requestAnimationFrame(liveTick);
+      } catch (err) {
+        const msg = err.name === "NotAllowedError" || err.name === "PermissionDeniedError"
+          ? "Mic permission denied"
+          : "Mic error: " + err.message;
+        document.getElementById("livePanel").classList.add("active");
+        document.getElementById("liveStatus").textContent = msg;
+      }
+    }
+
+    function stopLiveMode() {
+      if (live.rafId)    { cancelAnimationFrame(live.rafId); live.rafId = null; }
+      if (live.stream)   { live.stream.getTracks().forEach(t => t.stop()); live.stream = null; }
+      if (live.audioCtx) { live.audioCtx.close(); live.audioCtx = null; }
+      live.analyser = null;
+      live.active = false;
+      live.pitchClass = null;
+      state.livePitchClass = null;
+
+      liveHighlight(null);
+      document.getElementById("livePanel").classList.remove("active");
+      const btn = document.getElementById("liveBtn");
+      btn.textContent = "Start Live Mode";
+      btn.classList.remove("live-on");
+    }
+
+    document.getElementById("liveBtn").addEventListener("click", () => {
+      live.active ? stopLiveMode() : startLiveMode();
+    });
   </script>
 </body>
 </html>
